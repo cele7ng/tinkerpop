@@ -33,12 +33,15 @@ namespace Gremlin.Net.Driver
     {
         private int _poolSize = DefaultPoolSize;
         private int _maxInProcessPerConnection = DefaultMaxInProcessPerConnection;
+        private int _getOpenConnectionRetries = DefaultGetOpenConnectionRetries;
         private const int DefaultPoolSize = 4;
         private const int DefaultMaxInProcessPerConnection = 32;
+        private const int DefaultGetOpenConnectionRetries = 4;
 
         /// <summary>
         ///     Gets or sets the size of the connection pool.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The specified pool size is less than or equal to zero.</exception>
         /// <remarks>
         ///     The default value is 4.
         /// </remarks>
@@ -48,17 +51,18 @@ namespace Gremlin.Net.Driver
             set
             {
                 if (value <= 0)
-                    throw new ArgumentOutOfRangeException(nameof(PoolSize), "PoolSize must be > 0!");
+                    throw new ArgumentOutOfRangeException(nameof(PoolSize), $"{nameof(PoolSize)} must be > 0!");
                 _poolSize = value;
             }
         }
 
         /// <summary>
-        ///     Gets the maximum number of in-flight requests that can occur on a connection.
+        ///     Gets or sets the maximum number of in-flight requests that can occur on a connection.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The specified number is less than or equal to zero.</exception>
         /// <remarks>
-        ///     The default value is 32. A <see cref="NoConnectionAvailableException" /> is thrown if this limit is reached on
-        ///     all connections when a new request comes in.
+        ///     The default value is 32. A <see cref="ConnectionPoolBusyException" /> is thrown if this limit is reached
+        ///     on all connections when a new request comes in.
         /// </remarks>
         public int MaxInProcessPerConnection
         {
@@ -67,8 +71,39 @@ namespace Gremlin.Net.Driver
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException(nameof(MaxInProcessPerConnection),
-                        "MaxInProcessPerConnection must be > 0!");
+                        $"{nameof(MaxInProcessPerConnection)} must be > 0!");
                 _maxInProcessPerConnection = value;
+            }
+        }
+
+        /// <summary>
+        ///     Gets or sets the number of retries to get an open connection from the pool to submit a request.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The number of retries specified is less than zero.</exception>
+        /// <remarks>
+        ///     The driver always tries to reconnect to a server in the background after it has noticed that a
+        ///     connection is dead. This setting only specifies how often the driver will retry to get an open
+        ///     connection from its pool when no open connection is available to submit a request.  
+        ///     These retries give the driver time to establish new connections to the server that might have been
+        ///     unavailable temporarily or that might have closed the connections, e.g., because they were idle for some
+        ///     time.
+        /// 
+        ///     The default value is 4. A <see cref="ServerUnavailableException" /> is thrown if the server can still
+        ///     not be reached after this many retry attempts.
+        ///
+        ///     Setting this to zero means that the exception is thrown immediately when no open connection is available
+        ///     to submit a request. The driver will however still try to reconnect to the server in the background for
+        ///     subsequent requests.
+        /// </remarks>
+        public int GetOpenConnectionRetries
+        {
+            get => _getOpenConnectionRetries;
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(GetOpenConnectionRetries),
+                        $"{GetOpenConnectionRetries} must be >= 0!");
+                _getOpenConnectionRetries = value;
             }
         }
     }
